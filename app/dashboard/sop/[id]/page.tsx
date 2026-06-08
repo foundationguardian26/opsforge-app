@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useParams } from "next/navigation";
+import { supabase } from "../../../../lib/supabase";
 
 type Lang = "EN" | "ES";
 type SensorStatus = "normal" | "caution" | "critical";
@@ -411,6 +413,14 @@ export default function SopDetailPage() {
   const [submitted, setSubmitted]     = useState(false);
   const pinRef = useRef<HTMLInputElement>(null);
 
+  const params = useParams();
+  const sopId = params.id as string;
+
+  const [sopLoading, setSopLoading] = useState(true);
+  const [sopNotFound, setSopNotFound] = useState(false);
+  const [sopTitle, setSopTitle] = useState("");
+  const [dbSteps, setDbSteps] = useState<{ number: number; title: string; description: string; warning: string | null }[]>([]);
+
   useEffect(() => {
     const id = setInterval(() => {
       setElapsed((prev) => {
@@ -432,6 +442,41 @@ export default function SopDetailPage() {
     const id = setInterval(() => setIotTick((n) => n + 1), 3000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    async function fetchSop() {
+      const { data: sopData } = await supabase
+        .from("sops")
+        .select("id, title")
+        .eq("id", sopId)
+        .single();
+
+      if (!sopData) {
+        setSopNotFound(true);
+        setSopLoading(false);
+        return;
+      }
+
+      const { data: stepsData } = await supabase
+        .from("sop_steps")
+        .select("step_number, description, safety_warning")
+        .eq("sop_id", sopId)
+        .order("step_number");
+
+      setSopTitle(sopData.title);
+      setDbSteps(
+        (stepsData ?? []).map((s) => ({
+          number: s.step_number,
+          title: `Step ${s.step_number}`,
+          description: s.description,
+          warning: s.safety_warning ?? null,
+        }))
+      );
+      setSopLoading(false);
+    }
+
+    fetchSop();
+  }, [sopId]);
 
   const t  = ui[lang];
   const d  = sop[lang];
@@ -472,6 +517,35 @@ export default function SopDetailPage() {
 
   function setOutcome(stepNum: number, outcome: StepOutcome) {
     setStepOutcomes((prev) => ({ ...prev, [stepNum]: prev[stepNum] === outcome ? null : outcome }));
+  }
+
+  if (sopLoading) {
+    return (
+      <div className="min-h-screen bg-[#121212] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-[#9CA3AF] text-xs font-bold uppercase tracking-widest">Loading Procedure...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (sopNotFound) {
+    return (
+      <div className="min-h-screen bg-[#121212] flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="w-12 h-12 rounded-sm border border-red-600/50 bg-red-950/20 flex items-center justify-center mx-auto">
+            <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+            </svg>
+          </div>
+          <h2 className="text-white text-xl font-black uppercase tracking-tight">No Procedure Found</h2>
+          <p className="text-[#9CA3AF] text-sm">
+            Procedure <span className="font-mono text-white">{sopId}</span> does not exist or has been removed.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -528,7 +602,7 @@ export default function SopDetailPage() {
         <div className="px-4 pb-3 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[#9CA3AF] text-xs font-bold uppercase tracking-widest">
-              {t.taktLabel} · {sop.id} · {t.cycleLabel}&nbsp;#{cycles}
+              {t.taktLabel} · {sopId} · {t.cycleLabel}&nbsp;#{cycles}
             </span>
             <span className={`font-mono text-xs font-bold tabular-nums ${isTaktUrgent ? "text-red-400" : "text-[#9CA3AF]"}`}>
               {elapsedSec}s / {TAKT_SECONDS}s
@@ -629,7 +703,7 @@ export default function SopDetailPage() {
             <span className="text-red-500 text-xs font-bold tracking-widest uppercase border border-red-600/50 px-2 py-0.5 rounded-sm">{sop.revision}</span>
             <span className="text-[#9CA3AF] text-xs">{d.station}</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight leading-tight text-white uppercase mt-2">{d.title}</h1>
+          <h1 className="text-3xl font-black tracking-tight leading-tight text-white uppercase mt-2">{sopTitle || d.title}</h1>
           <div className="mt-4 border-l-4 border-red-600 pl-4">
             <p className="text-xs font-bold text-red-500 uppercase tracking-widest mb-1">{t.objectiveLabel}</p>
             <p className="text-[#9CA3AF] text-sm leading-relaxed">{d.objective}</p>
@@ -807,7 +881,7 @@ export default function SopDetailPage() {
                 <line x1="100" y1="230" x2="280" y2="230" stroke="rgba(255,255,255,0.06)" strokeWidth="0.75" />
                 <line x1="100" y1="226" x2="100" y2="234" stroke="rgba(255,255,255,0.06)" strokeWidth="0.75" />
                 <line x1="280" y1="226" x2="280" y2="234" stroke="rgba(255,255,255,0.06)" strokeWidth="0.75" />
-                <text x="190" y="242" textAnchor="middle" fontSize="7" fill="rgba(156,163,175,0.3)" fontFamily="monospace">PANEL WIDTH — {sop.id}-R4.1</text>
+                <text x="190" y="242" textAnchor="middle" fontSize="7" fill="rgba(156,163,175,0.3)" fontFamily="monospace">PANEL WIDTH — {sopId}-R4.1</text>
                 {/* Rotation hint arrows */}
                 <path d="M 36,130 Q 30,110 46,100" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
                 <path d="M 44,99 L 46,100 L 44,104" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
@@ -816,6 +890,7 @@ export default function SopDetailPage() {
             <div className="px-4 py-2 border-t border-white/10 bg-[#080808] flex items-center justify-between">
               <p className="text-[#9CA3AF]/40 text-xs">{t.viewer3dSub}</p>
               <span className="text-[#9CA3AF]/30 text-xs font-mono">v{sop.revision}</span>
+
             </div>
           </div>
         </section>
@@ -1074,7 +1149,7 @@ export default function SopDetailPage() {
         <section>
           <h2 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-widest mb-4">{t.stepsHeading}</h2>
           <ol className="space-y-4">
-            {d.steps.map((step) => {
+            {dbSteps.map((step) => {
               const outcome = stepOutcomes[step.number] ?? null;
               const isBranch = step.number === BRANCH_STEP;
               return (
@@ -1212,7 +1287,7 @@ export default function SopDetailPage() {
                     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={8} fontWeight="bold" fill="#fca5a5" fontFamily="monospace">{label}</text>
                   </g>
                 ))}
-                <text x="150" y="412" textAnchor="middle" dominantBaseline="central" fontSize={6} fill="rgba(156,163,175,0.35)" letterSpacing="1.5" fontFamily="monospace">BODY SIDE — INT. VIEW — {sop.id}-R4.1</text>
+                <text x="150" y="412" textAnchor="middle" dominantBaseline="central" fontSize={6} fill="rgba(156,163,175,0.35)" letterSpacing="1.5" fontFamily="monospace">BODY SIDE — INT. VIEW — {sopId}-R4.1</text>
               </svg>
             </div>
             <div className="px-4 pt-3 pb-4 border-t border-white/10 space-y-3">
@@ -1544,7 +1619,7 @@ export default function SopDetailPage() {
 
         {/* Footer */}
         <div className="border-t border-white/10 pt-6 text-center pb-2">
-          <p className="text-[#9CA3AF] text-xs">{sop.id} — {sop.revision} — {t.footerBy}</p>
+          <p className="text-[#9CA3AF] text-xs">{sopId} — {sop.revision} — {t.footerBy}</p>
           <p className="text-[#9CA3AF]/50 text-xs mt-1">{t.footerHelp}</p>
         </div>
       </div>
