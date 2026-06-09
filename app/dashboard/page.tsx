@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
+// This magic line tells Next.js to NEVER cache this page and always fetch fresh data
 export const dynamic = 'force-dynamic'; 
 
 export default async function Dashboard() {
-  // Fetch data AND catch any errors Supabase might be throwing secretly
   const { data: sops, error } = await supabase.from('sops').select('*');
 
   return (
@@ -25,7 +25,6 @@ export default async function Dashboard() {
         {/* ------------------------ */}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-          {/* We map over the database results here to create a card for every SOP */}
           {sops?.map((sop) => (
             <div key={sop.id} className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg shadow-lg">
               <div className="flex justify-between items-start mb-2">
@@ -41,7 +40,6 @@ export default async function Dashboard() {
             </div>
           ))}
         </div>
-
       </main>
     </div>
   );

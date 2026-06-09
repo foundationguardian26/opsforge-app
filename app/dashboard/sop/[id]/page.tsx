@@ -1,38 +1,44 @@
 import Link from 'next/link';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../../../lib/supabase';
 
-// This magic line tells Next.js to NEVER cache this page and always fetch fresh data
-export const dynamic = 'force-dynamic'; 
+export default async function SOPPage({ params }: { params: Promise<{ id: string }> }) {
+  
+  const resolvedParams = await params;
+  const procedureId = resolvedParams.id;
 
-export default async function Dashboard() {
-  // Fetch data from Supabase!
-  const { data: sops } = await supabase.from('sops').select('*');
+  const { data: sop } = await supabase
+    .from('sops')
+    .select('*')
+    .eq('id', procedureId)
+    .single();
+
+  if (!sop) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#121212] text-white font-sans">
+        <h1 className="text-2xl font-bold text-red-500 mb-4">NO PROCEDURE FOUND</h1>
+        <p className="text-zinc-400">Procedure {procedureId} does not exist in the database.</p>
+        <Link href="/dashboard" className="text-[#D4AF37] hover:underline mt-6">← Back to Dashboard</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-[#121212] p-8 font-sans text-white">
-      <header className="mb-10 border-b border-[#D4AF37] pb-4 flex justify-between items-end">
-        <h1 className="text-4xl font-bold text-[#D4AF37]">OpsForge Dashboard</h1>
-        <Link href="/" className="text-zinc-400 hover:text-white transition">← Back Home</Link>
+      <header className="mb-10 border-b border-[#D4AF37] pb-4">
+        <Link href="/dashboard" className="text-zinc-400 hover:text-white transition inline-block mb-4">← Back to Dashboard</Link>
+        <div className="flex justify-between items-end">
+          <h1 className="text-4xl font-bold text-[#D4AF37]">{sop.title}</h1>
+          <span className="bg-[#D4AF37] text-black text-sm font-bold px-3 py-1 rounded uppercase">
+            {sop.status}
+          </span>
+        </div>
       </header>
-      
-      <main className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* We map over the database results here to create a card for every SOP */}
-        {sops?.map((sop) => (
-          <div key={sop.id} className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg shadow-lg">
-            <div className="flex justify-between items-start mb-2">
-              <h2 className="text-xl font-semibold text-white">{sop.title}</h2>
-              <span className="bg-[#D4AF37] text-black text-xs font-bold px-2 py-1 rounded uppercase">
-                {sop.status}
-              </span>
-            </div>
-            <p className="text-zinc-400 mb-4">{sop.description}</p>
-            <Link href={`/dashboard/sop/${sop.id}`} className="text-[#D4AF37] hover:underline font-medium block mt-4">
-              View Procedure →
-            </Link>
-          </div>
-        ))}
 
+      <main className="max-w-4xl bg-zinc-900 border border-zinc-800 p-8 rounded-lg shadow-lg">
+        <h2 className="text-2xl font-semibold mb-4 border-b border-zinc-800 pb-2">Procedure Details</h2>
+        <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
+          {sop.description}
+        </p>
       </main>
     </div>
   );
