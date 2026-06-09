@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabase';
+import AndonButton from '../../../../components/AndonButton';
 
 export default async function SOPPage({ params }: { params: Promise<{ id: string }> }) {
   
@@ -21,7 +22,7 @@ export default async function SOPPage({ params }: { params: Promise<{ id: string
     );
   }
 
-  // Quick check to see if the attached file is a video (.mp4, .webm) or an image
+  // Check if media is a video
   const isVideo = sop.media_url?.match(/\.(mp4|webm|ogg)$/i);
 
   return (
@@ -38,7 +39,7 @@ export default async function SOPPage({ params }: { params: Promise<{ id: string
 
       <main className="max-w-4xl bg-zinc-900 border border-zinc-800 p-8 rounded-lg shadow-lg">
         
-        {/* If a picture or video exists, display it prominently at the top */}
+        {/* Media Viewer */}
         {sop.media_url && (
           <div className="mb-8 border border-zinc-800 rounded-lg overflow-hidden bg-black flex justify-center">
             {isVideo ? (
@@ -56,6 +57,10 @@ export default async function SOPPage({ params }: { params: Promise<{ id: string
         <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
           {sop.description}
         </p>
+
+        {/* The Digital Andon Cord */}
+        <AndonButton sopId={sop.id} sopTitle={sop.title} />
+
       </main>
     </div>
   );
