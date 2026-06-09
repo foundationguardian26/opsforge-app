@@ -12,7 +12,9 @@ export default function Dashboard() {
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg shadow-lg">
           <h2 className="text-xl font-semibold mb-2 text-white">Active Procedures</h2>
           <p className="text-zinc-400 mb-4">Manage and review your standard operating procedures.</p>
-          <button className="text-[#D4AF37] hover:underline font-medium">View SOPs →</button>
+          <Link href="/dashboard/sop/1" className="text-[#D4AF37] hover:underline font-medium block mt-4">
+            View SOPs →
+          </Link>
         </div>
       </main>
     </div>
