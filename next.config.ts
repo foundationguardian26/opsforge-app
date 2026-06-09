@@ -1,7 +1,15 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/dashboard', // Ensure this matches your actual dashboard path
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
