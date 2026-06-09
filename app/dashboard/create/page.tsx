@@ -1,4 +1,4 @@
-'use client'; // This tells Next.js this page handles user interaction (typing, clicking)
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,6 +8,7 @@ import Link from 'next/link';
 export default function CreateProcedure() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
@@ -15,17 +16,37 @@ export default function CreateProcedure() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Send the typed data to your Supabase database
+    let media_url = null;
+
+    // 1. If the user attached a picture/video, upload it to Supabase Storage first
+    if (mediaFile) {
+      const fileExt = mediaFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`; // Create a unique file name
+
+      const { error: uploadError } = await supabase.storage
+        .from('sop-media')
+        .upload(fileName, mediaFile);
+
+      if (uploadError) {
+        alert('Failed to upload media. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Grab the public web link for the file we just uploaded
+      const { data } = supabase.storage.from('sop-media').getPublicUrl(fileName);
+      media_url = data.publicUrl;
+    }
+
+    // 3. Save the text AND the new media link to the database
     const { error } = await supabase
       .from('sops')
-      .insert([{ title, description, status: 'Active' }]);
+      .insert([{ title, description, status: 'Active', media_url }]);
 
     if (error) {
-      console.error(error);
       alert('Failed to save procedure.');
       setIsSubmitting(false);
     } else {
-      // If successful, automatically route back to the dashboard and refresh the data
       router.push('/dashboard');
       router.refresh();
     }
@@ -48,9 +69,23 @@ export default function CreateProcedure() {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Daily Equipment Checklist"
+              placeholder="e.g., Mechanical Seal Replacement"
               className="w-full bg-zinc-800 border border-zinc-700 rounded p-3 text-white focus:outline-none focus:border-[#D4AF37] transition"
             />
+          </div>
+
+          {/* NEW MEDIA UPLOAD BUTTON */}
+          <div className="border border-dashed border-zinc-700 p-6 rounded text-center bg-zinc-800/50 hover:bg-zinc-800 transition cursor-pointer">
+            <label className="block text-[#D4AF37] font-medium cursor-pointer">
+              + Attach Tool Picture or Operation Video
+              <input 
+                type="file" 
+                accept="image/*,video/*"
+                onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+            </label>
+            {mediaFile && <p className="text-sm text-zinc-400 mt-2">Attached: {mediaFile.name}</p>}
           </div>
 
           <div>
@@ -60,7 +95,7 @@ export default function CreateProcedure() {
               rows={8}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detail the exact steps required for this procedure..."
+              placeholder="Detail the exact steps required..."
               className="w-full bg-zinc-800 border border-zinc-700 rounded p-3 text-white focus:outline-none focus:border-[#D4AF37] transition resize-none"
             />
           </div>
@@ -70,7 +105,7 @@ export default function CreateProcedure() {
             disabled={isSubmitting}
             className="bg-[#D4AF37] text-black font-bold py-3 rounded hover:bg-yellow-500 transition disabled:opacity-50"
           >
-            {isSubmitting ? 'Saving Procedure...' : 'Save & Publish Procedure'}
+            {isSubmitting ? 'Uploading & Saving...' : 'Save & Publish Procedure'}
           </button>
         </form>
       </main>

@@ -16,11 +16,13 @@ export default async function SOPPage({ params }: { params: Promise<{ id: string
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#121212] text-white font-sans">
         <h1 className="text-2xl font-bold text-red-500 mb-4">NO PROCEDURE FOUND</h1>
-        <p className="text-zinc-400">Procedure {procedureId} does not exist in the database.</p>
         <Link href="/dashboard" className="text-[#D4AF37] hover:underline mt-6">← Back to Dashboard</Link>
       </div>
     );
   }
+
+  // Quick check to see if the attached file is a video (.mp4, .webm) or an image
+  const isVideo = sop.media_url?.match(/\.(mp4|webm|ogg)$/i);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#121212] p-8 font-sans text-white">
@@ -35,6 +37,21 @@ export default async function SOPPage({ params }: { params: Promise<{ id: string
       </header>
 
       <main className="max-w-4xl bg-zinc-900 border border-zinc-800 p-8 rounded-lg shadow-lg">
+        
+        {/* If a picture or video exists, display it prominently at the top */}
+        {sop.media_url && (
+          <div className="mb-8 border border-zinc-800 rounded-lg overflow-hidden bg-black flex justify-center">
+            {isVideo ? (
+              <video controls className="max-w-full max-h-[500px] object-contain">
+                <source src={sop.media_url} />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <img src={sop.media_url} alt="Procedure visual aid" className="max-w-full max-h-[500px] object-contain" />
+            )}
+          </div>
+        )}
+
         <h2 className="text-2xl font-semibold mb-4 border-b border-zinc-800 pb-2">Procedure Details</h2>
         <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
           {sop.description}
