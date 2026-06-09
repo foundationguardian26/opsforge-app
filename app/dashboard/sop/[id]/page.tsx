@@ -1,14 +1,18 @@
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabase';
 
-// This page looks at the URL to figure out which ID to load
-export default async function SOPPage({ params }: { params: { id: string } }) {
+// Next.js 15 requires us to treat params as a Promise
+export default async function SOPPage({ params }: { params: Promise<{ id: string }> }) {
   
-  // Fetch the single specific SOP from Supabase that matches the URL ID
+  // 1. Unwrap the URL parameter safely
+  const resolvedParams = await params;
+  const procedureId = resolvedParams.id;
+
+  // 2. Fetch the specific SOP using that ID
   const { data: sop } = await supabase
     .from('sops')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', procedureId)
     .single();
 
   // If the database can't find it, show the error screen gracefully
@@ -16,7 +20,7 @@ export default async function SOPPage({ params }: { params: { id: string } }) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#121212] text-white font-sans">
         <h1 className="text-2xl font-bold text-red-500 mb-4">NO PROCEDURE FOUND</h1>
-        <p className="text-zinc-400">Procedure {params.id} does not exist in the database.</p>
+        <p className="text-zinc-400">Procedure {procedureId} does not exist in the database.</p>
         <Link href="/dashboard" className="text-[#D4AF37] hover:underline mt-6">← Back to Dashboard</Link>
       </div>
     );
