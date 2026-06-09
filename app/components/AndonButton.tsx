@@ -9,16 +9,17 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [micError, setMicError] = useState(''); // NEW: State to hold microphone errors
   
-  // We use a ref to hold onto the microphone connection
   const recognitionRef = useRef<any>(null);
 
   const startListening = () => {
-    // Tap into the tablet/computer's built-in voice recognition
+    setMicError(''); // Clear old errors
+    
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-      alert("Voice dictation is not supported on this specific browser. Please type the issue.");
+      setMicError("Voice dictation is not supported on this browser. Please try Chrome, Edge, or Safari.");
       return;
     }
 
@@ -39,13 +40,22 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
         }
       }
       if (finalTranscript) {
-        // Add the spoken words to whatever is already in the text box
         setIssue((prev) => prev ? prev + ' ' + finalTranscript : finalTranscript);
       }
     };
 
+    // NEW: Catch the exact error and display it to the user
     recognition.onerror = (event: any) => {
-      console.error("Microphone error", event.error);
+      console.error("Microphone error:", event.error);
+      if (event.error === 'not-allowed') {
+        setMicError("Microphone blocked. If you are using Brave, please switch to Chrome or Edge.");
+      } else if (event.error === 'network') {
+        setMicError("Network error. Voice recognition requires an active internet connection.");
+      } else if (event.error === 'no-speech') {
+        // Ignore the "no-speech" error so it doesn't clutter the screen
+      } else {
+        setMicError(`Mic Error: ${event.error}. Please type manually.`);
+      }
       setIsListening(false);
     };
 
@@ -53,7 +63,11 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
       setIsListening(false);
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start recognition", e);
+    }
   };
 
   const stopListening = () => {
@@ -101,7 +115,6 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
           <h3 className="text-xl font-bold text-red-500 mb-2">Initiate Quality Alert</h3>
           <p className="text-zinc-400 mb-6 text-sm">You are halting standard work for: <strong className="text-white">{sopTitle}</strong>.</p>
           
-          {/* VOICE DICTATION CONTROLS */}
           <div className="flex justify-between items-end mb-2">
             <label className="text-zinc-300 font-medium text-sm">Describe the hazard or defect:</label>
             <button
@@ -116,6 +129,13 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
               {isListening ? '🛑 Stop Recording' : '🎤 Tap to Speak'}
             </button>
           </div>
+
+          {/* NEW: Displays the specific error to the user if the mic fails */}
+          {micError && (
+            <div className="bg-red-950 border border-red-500 text-red-500 p-2 rounded mb-4 text-xs font-bold">
+              {micError}
+            </div>
+          )}
 
           <textarea 
             rows={4}
