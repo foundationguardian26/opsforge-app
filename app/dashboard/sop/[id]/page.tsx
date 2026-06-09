@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabase';
-import AndonButton from '../../../../components/AndonButton';
+import AndonButton from '../../../components/AndonButton';
 
 export default async function SOPPage({ params }: { params: Promise<{ id: string }> }) {
   
@@ -41,14 +41,14 @@ export default async function SOPPage({ params }: { params: Promise<{ id: string
         
         {/* Media Viewer */}
         {sop.media_url && (
-          <div className="mb-8 border border-zinc-800 rounded-lg overflow-hidden bg-black flex justify-center">
+          <div className="mb-8 border border-zinc-800 rounded-lg overflow-hidden bg-black flex justify-center p-4">
             {isVideo ? (
               <video controls className="max-w-full max-h-[500px] object-contain">
                 <source src={sop.media_url} />
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <img src={sop.media_url} alt="Procedure visual aid" className="max-w-full max-h-[500px] object-contain" />
+              <img src={sop.media_url} alt="Procedure visual aid" className="max-w-full max-h-[500px] object-contain rounded" />
             )}
           </div>
         )}
