@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 
 export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTitle: string }) {
@@ -8,11 +8,64 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
   const [issue, setIssue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  
+  // We use a ref to hold onto the microphone connection
+  const recognitionRef = useRef<any>(null);
+
+  const startListening = () => {
+    // Tap into the tablet/computer's built-in voice recognition
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      alert("Voice dictation is not supported on this specific browser. Please type the issue.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        // Add the spoken words to whatever is already in the text box
+        setIssue((prev) => prev ? prev + ' ' + finalTranscript : finalTranscript);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Microphone error", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+  };
 
   const pullTheCord = async () => {
     setIsSubmitting(true);
     
-    // Send the alert to the database
     const { error } = await supabase
       .from('quality_alerts')
       .insert([{ sop_id: sopId, issue_description: issue }]);
@@ -46,13 +99,29 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
       ) : (
         <div className="bg-zinc-900 border border-red-600 p-6 rounded-lg shadow-lg">
           <h3 className="text-xl font-bold text-red-500 mb-2">Initiate Quality Alert</h3>
-          <p className="text-zinc-400 mb-4 text-sm">You are halting standard work for: <strong className="text-white">{sopTitle}</strong>. Please detail the exact safety hazard, defect, or tooling failure below.</p>
+          <p className="text-zinc-400 mb-6 text-sm">You are halting standard work for: <strong className="text-white">{sopTitle}</strong>.</p>
           
+          {/* VOICE DICTATION CONTROLS */}
+          <div className="flex justify-between items-end mb-2">
+            <label className="text-zinc-300 font-medium text-sm">Describe the hazard or defect:</label>
+            <button
+              type="button"
+              onClick={isListening ? stopListening : startListening}
+              className={`px-4 py-2 rounded font-bold text-sm transition flex items-center gap-2 shadow-lg ${
+                isListening 
+                  ? 'bg-red-600 text-white animate-pulse border border-red-400' 
+                  : 'bg-[#D4AF37] text-black hover:bg-yellow-500'
+              }`}
+            >
+              {isListening ? '🛑 Stop Recording' : '🎤 Tap to Speak'}
+            </button>
+          </div>
+
           <textarea 
             rows={4}
             value={issue}
             onChange={(e) => setIssue(e.target.value)}
-            placeholder="e.g., The pressure gauge is reading 50 PSI below the required standard..."
+            placeholder="Type manually or tap the microphone to dictate..."
             className="w-full bg-black border border-zinc-700 rounded p-3 text-white focus:outline-none focus:border-red-500 transition resize-none mb-4"
           />
           
