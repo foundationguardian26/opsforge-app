@@ -1,14 +1,20 @@
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
+import AlertsSection from '../components/AlertsSection';
 
-export const dynamic = 'force-dynamic'; 
+export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
   const { data: sops } = await supabase.from('sops').select('*');
+  const { data: alerts } = await supabase
+    .from('quality_alerts')
+    .select('*')
+    .neq('status', 'Resolved')
+    .order('created_at', { ascending: false });
 
   return (
     <div className="flex flex-col min-h-screen bg-[#121212] p-8 font-sans text-white">
-      
+
       {/* Updated Header with the Create Button */}
       <header className="mb-10 border-b border-[#D4AF37] pb-4 flex justify-between items-end w-full">
         <div>
@@ -19,7 +25,9 @@ export default async function Dashboard() {
           + New Procedure
         </Link>
       </header>
-      
+
+      <AlertsSection alerts={alerts ?? []} />
+
       <main className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {sops?.map((sop) => (
           <div key={sop.id} className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg shadow-lg flex flex-col justify-between">
