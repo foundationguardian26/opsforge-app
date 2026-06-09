@@ -14,17 +14,17 @@ export default function AlertCard({
           Open
         </span>
       </div>
-      
+
       <p className="text-zinc-500 text-xs">
         Reported: {new Date(alert.created_at).toLocaleString()}
       </p>
-      
+
       {resolveError && (
         <p className="text-red-400 text-xs font-bold">
           Failed to resolve alert. Please try again.
         </p>
       )}
-      
+
       <button
         onClick={resolveAlert}
         disabled={isResolving}
