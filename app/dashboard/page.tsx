@@ -9,7 +9,7 @@ export default async function Dashboard() {
   const { data: alerts } = await supabase
     .from('quality_alerts')
     .select('*')
-    .or('status.neq.Resolved,status.is.null')
+    .in('status', ['Open', 'Critical'])
     .order('created_at', { ascending: false });
 
   return (
