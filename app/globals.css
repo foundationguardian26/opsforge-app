@@ -25,6 +25,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Kiosk: scale up sop-output text for 3-foot legibility */
+.sop-output-kiosk .sop-output h1 { font-size: 2.25rem; }
+.sop-output-kiosk .sop-output h2 { font-size: 1.75rem; }
+.sop-output-kiosk .sop-output p,
+.sop-output-kiosk .sop-output li { font-size: 1.25rem; line-height: 2; }
+.sop-output-kiosk .sop-output th { font-size: 1rem; padding: 0.75rem 1rem; }
+.sop-output-kiosk .sop-output td { font-size: 1.125rem; padding: 0.75rem 1rem; }
+
 /* SOP Authoring Engine — markdown output styles */
 .sop-output h1 {
   font-size: 1.5rem;
