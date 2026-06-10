@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { AlertTriangle, AlertOctagon, BadgeCheck, ShieldCheck } from 'lucide-react';
@@ -18,36 +19,11 @@ const TAGS: Record<string, TagDef> = {
   MANDATORY: { icon: ShieldCheck,   color: '#3b82f6', label: 'MANDATORY' },
 };
 
-// Replace [TAG] with inline-code tokens react-markdown can intercept
 function injectTokens(markdown: string): string {
   return markdown.replace(
     /\[(SAFETY|CRITICAL|QUALITY|MANDATORY)\]/g,
     '`TAG:$1`',
   );
-}
-
-// Prepend a "Step #" column to every markdown table
-function injectStepNumbers(markdown: string): string {
-  const lines = markdown.split('\n');
-  let tableRowIndex = -1;
-
-  return lines.map((line) => {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith('|')) {
-      tableRowIndex = -1;
-      return line;
-    }
-
-    tableRowIndex++;
-
-    if (tableRowIndex === 0) {
-      return '| Step # ' + trimmed.slice(1);   // header row
-    }
-    if (tableRowIndex === 1) {
-      return '|:---:' + trimmed.slice(1);       // separator row
-    }
-    return `| ${tableRowIndex - 1} ` + trimmed.slice(1); // data rows
-  }).join('\n');
 }
 
 function TagBadge({ tagKey }: { tagKey: string }) {
@@ -65,22 +41,79 @@ function TagBadge({ tagKey }: { tagKey: string }) {
   );
 }
 
+const STEP_TH_STYLE: React.CSSProperties = {
+  background: '#1c1c1c',
+  color: '#D4AF37',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  padding: '0.5rem 0.75rem',
+  border: '1px solid #3f3f46',
+  textAlign: 'center',
+  fontSize: '0.75rem',
+  whiteSpace: 'nowrap',
+};
+
+const STEP_TD_STYLE: React.CSSProperties = {
+  padding: '0.5rem 0.75rem',
+  border: '1px solid #3f3f46',
+  color: '#D4AF37',
+  fontWeight: 700,
+  textAlign: 'center',
+  verticalAlign: 'top',
+  fontSize: '0.875rem',
+  whiteSpace: 'nowrap',
+};
+
 export default function TagRenderer({ content }: { content: string }) {
+  // Ref-based counter resets per tbody so multi-table docs number correctly
+  const rowCounter = useRef(0);
+
   return (
     <div className="sop-output">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          code({ children, className }) {
+          code({ children, className }: React.HTMLAttributes<HTMLElement> & { children?: React.ReactNode }) {
             const text = String(children);
             if (text.startsWith('TAG:')) {
               return <TagBadge tagKey={text.slice(4)} />;
             }
             return <code className={className}>{children}</code>;
           },
+
+          // Reset the counter at the start of every tbody
+          tbody({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
+            rowCounter.current = 0;
+            return <tbody {...props}>{children}</tbody>;
+          },
+
+          // Inject Step # header into thead rows; inject numbered cell into tbody rows
+          tr({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
+            const isHeaderRow = React.Children.toArray(children).some(
+              (child) => React.isValidElement(child) && child.type === 'th',
+            );
+
+            if (isHeaderRow) {
+              return (
+                <tr {...props}>
+                  <th style={STEP_TH_STYLE}>Step #</th>
+                  {children}
+                </tr>
+              );
+            }
+
+            rowCounter.current += 1;
+            return (
+              <tr {...props}>
+                <td style={STEP_TD_STYLE}>{rowCounter.current}</td>
+                {children}
+              </tr>
+            );
+          },
         }}
       >
-        {injectStepNumbers(injectTokens(content))}
+        {injectTokens(content)}
       </ReactMarkdown>
     </div>
   );

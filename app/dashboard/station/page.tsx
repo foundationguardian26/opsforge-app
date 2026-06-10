@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Nfc, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import TagRenderer from '../../components/TagRenderer';
@@ -14,36 +14,49 @@ interface Sop {
 }
 
 const ANDON_CATEGORIES = [
-  { label: 'Machine Fault',   color: 'red'  },
-  { label: 'Missing Parts',   color: 'gold' },
-  { label: 'Quality Defect',  color: 'gold' },
-  { label: 'Safety Hazard',   color: 'red'  },
+  { label: 'Machine Fault',  color: 'red'  },
+  { label: 'Missing Parts',  color: 'gold' },
+  { label: 'Quality Defect', color: 'gold' },
+  { label: 'Safety Hazard',  color: 'red'  },
 ] as const;
 
 export default function StationPage() {
-  const [kioskState, setKioskState]     = useState<KioskState>('idle');
-  const [sop, setSop]                   = useState<Sop | null>(null);
-  const [showAndonModal, setShowAndonModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [fetchError, setFetchError]     = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading]             = useState(false);
+  const [kioskState, setKioskState]           = useState<KioskState>('idle');
+  const [sop, setSop]                         = useState<Sop | null>(null);
+  const [showAndonModal, setShowAndonModal]   = useState(false);
+  const [isSubmitting, setIsSubmitting]       = useState(false);
+  const [fetchError, setFetchError]           = useState<string | null>(null);
 
-  const handleClockIn = async () => {
-    setFetchError(null);
-    try {
-      const { data, error } = await supabase
-        .from('sops')
-        .select('id, title, description')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+  // Fires exactly once when the operator authenticates — never loops
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
-      if (error) throw error;
-      setSop(data);
-      setKioskState('active');
-    } catch (err: unknown) {
-      setFetchError(err instanceof Error ? err.message : 'Failed to load procedure.');
-    }
-  };
+    const fetchSop = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      try {
+        const { data, error } = await supabase
+          .from('sops')
+          .select('id, title, description')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) throw error;
+        setSop(data);
+        setKioskState('active');
+      } catch (err: unknown) {
+        setFetchError(err instanceof Error ? err.message : 'Failed to load procedure.');
+        setIsAuthenticated(false); // allow retry
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSop();
+  }, [isAuthenticated]); // ← only runs when isAuthenticated flips to true
 
   const handleAndonCategory = async (category: string) => {
     setIsSubmitting(true);
@@ -62,32 +75,43 @@ export default function StationPage() {
   };
 
   const handleReset = () => {
+    setIsAuthenticated(false);
     setKioskState('idle');
     setSop(null);
     setFetchError(null);
     setShowAndonModal(false);
   };
 
-  // ── Idle: NFC tap screen ──────────────────────────────────────────────────
+  // ── Idle: NFC tap / loading screen ───────────────────────────────────────
   if (kioskState === 'idle') {
     return (
       <div className="h-screen bg-[#121212] flex flex-col items-center justify-center gap-10 select-none overflow-hidden">
-        <div
-          onClick={handleClockIn}
-          className="flex flex-col items-center gap-8 cursor-pointer"
-        >
-          <div className="animate-pulse p-8 rounded-full border-2 border-[#D4AF37]/30 bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 transition-colors">
-            <Nfc size={140} strokeWidth={1} className="text-[#D4AF37]" />
-          </div>
-          <div className="text-center">
-            <p className="text-white text-5xl font-black uppercase tracking-widest leading-tight">
-              Tap Badge<br />to Clock In
-            </p>
-            <p className="text-zinc-500 text-base uppercase tracking-widest mt-4">
-              Station 01 — Assembly Line
+
+        {isLoading ? (
+          <div className="flex flex-col items-center gap-6">
+            <div className="w-16 h-16 border-4 border-zinc-700 border-t-[#D4AF37] rounded-full animate-spin" />
+            <p className="text-zinc-400 text-base uppercase tracking-widest animate-pulse">
+              Loading Procedure...
             </p>
           </div>
-        </div>
+        ) : (
+          <div
+            onClick={() => setIsAuthenticated(true)}
+            className="flex flex-col items-center gap-8 cursor-pointer"
+          >
+            <div className="animate-pulse p-8 rounded-full border-2 border-[#D4AF37]/30 bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 transition-colors">
+              <Nfc size={140} strokeWidth={1} className="text-[#D4AF37]" />
+            </div>
+            <div className="text-center">
+              <p className="text-white text-5xl font-black uppercase tracking-widest leading-tight">
+                Tap Badge<br />to Clock In
+              </p>
+              <p className="text-zinc-500 text-base uppercase tracking-widest mt-4">
+                Station 01 — Assembly Line
+              </p>
+            </div>
+          </div>
+        )}
 
         {fetchError && (
           <div className="bg-red-950 border border-red-600 text-red-400 p-4 rounded-lg text-sm font-bold max-w-sm text-center">
@@ -96,7 +120,7 @@ export default function StationPage() {
         )}
 
         <button
-          onClick={handleClockIn}
+          onClick={() => setIsAuthenticated(true)}
           className="fixed bottom-3 right-4 text-zinc-800 hover:text-zinc-600 text-xs transition uppercase tracking-widest"
         >
           dev bypass
@@ -137,7 +161,6 @@ export default function StationPage() {
   return (
     <div className="h-screen bg-[#121212] flex flex-col overflow-hidden">
 
-      {/* Header */}
       <header className="shrink-0 bg-zinc-900 border-b border-[#D4AF37] px-8 py-5 flex justify-between items-center">
         <div>
           <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Active Procedure</p>
@@ -162,12 +185,10 @@ export default function StationPage() {
         </div>
       </header>
 
-      {/* SOP content — scrollable, kiosk-scale text */}
       <main className="flex-1 overflow-y-auto px-10 py-8 sop-output-kiosk">
         <TagRenderer content={sop?.description ?? ''} />
       </main>
 
-      {/* Andon Cord — pinned footer */}
       <footer className="shrink-0">
         <button
           onClick={() => setShowAndonModal(true)}
@@ -177,18 +198,15 @@ export default function StationPage() {
         </button>
       </footer>
 
-      {/* ── Andon category modal ── */}
       {showAndonModal && (
         <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-6">
           <div className="bg-[#121212] border border-red-700 rounded-2xl p-8 w-full max-w-lg shadow-2xl">
-
             <div className="mb-8 text-center">
               <p className="text-red-500 text-xs font-bold uppercase tracking-widest mb-2">Andon Cord Activated</p>
               <h2 className="text-white text-4xl font-black uppercase tracking-wide">
                 What is the issue?
               </h2>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               {ANDON_CATEGORIES.map(({ label, color }) => (
                 <button
@@ -207,7 +225,6 @@ export default function StationPage() {
                 </button>
               ))}
             </div>
-
             <button
               onClick={() => setShowAndonModal(false)}
               disabled={isSubmitting}
@@ -215,7 +232,6 @@ export default function StationPage() {
             >
               Cancel
             </button>
-
           </div>
         </div>
       )}
