@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
+import AnalyticsCharts from '../../components/AnalyticsCharts';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://anmkzachozworppovcxi.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -99,6 +100,8 @@ export default async function AdminDashboard() {
         </div>
 
       </section>
+
+      <AnalyticsCharts alerts={rows.map((r) => ({ status: r.status, created_at: r.created_at }))} />
 
       {/* ── Live Floor Activity Table ── */}
       <section>
