@@ -26,6 +26,30 @@ function injectTokens(markdown: string): string {
   );
 }
 
+// Prepend a "Step #" column to every markdown table
+function injectStepNumbers(markdown: string): string {
+  const lines = markdown.split('\n');
+  let tableRowIndex = -1;
+
+  return lines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('|')) {
+      tableRowIndex = -1;
+      return line;
+    }
+
+    tableRowIndex++;
+
+    if (tableRowIndex === 0) {
+      return '| Step # ' + trimmed.slice(1);   // header row
+    }
+    if (tableRowIndex === 1) {
+      return '|:---:' + trimmed.slice(1);       // separator row
+    }
+    return `| ${tableRowIndex - 1} ` + trimmed.slice(1); // data rows
+  }).join('\n');
+}
+
 function TagBadge({ tagKey }: { tagKey: string }) {
   const def = TAGS[tagKey];
   if (!def) return null;
@@ -56,7 +80,7 @@ export default function TagRenderer({ content }: { content: string }) {
           },
         }}
       >
-        {injectTokens(content)}
+        {injectStepNumbers(injectTokens(content))}
       </ReactMarkdown>
     </div>
   );

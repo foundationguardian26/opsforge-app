@@ -13,11 +13,19 @@ interface Sop {
   description: string | null;
 }
 
+const ANDON_CATEGORIES = [
+  { label: 'Machine Fault',   color: 'red'  },
+  { label: 'Missing Parts',   color: 'gold' },
+  { label: 'Quality Defect',  color: 'gold' },
+  { label: 'Safety Hazard',   color: 'red'  },
+] as const;
+
 export default function StationPage() {
-  const [kioskState, setKioskState] = useState<KioskState>('idle');
-  const [sop, setSop] = useState<Sop | null>(null);
+  const [kioskState, setKioskState]     = useState<KioskState>('idle');
+  const [sop, setSop]                   = useState<Sop | null>(null);
+  const [showAndonModal, setShowAndonModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchError, setFetchError]     = useState<string | null>(null);
 
   const handleClockIn = async () => {
     setFetchError(null);
@@ -37,18 +45,19 @@ export default function StationPage() {
     }
   };
 
-  const handleAndon = async () => {
+  const handleAndonCategory = async (category: string) => {
     setIsSubmitting(true);
     try {
       await supabase.from('quality_alerts').insert([{
         sop_id: sop?.id ?? null,
-        issue_description: 'Operator triggered Andon Cord at Kiosk',
+        issue_description: `Andon Pulled: ${category}`,
         status: 'Open',
       }]);
     } catch {
-      // Alert the floor regardless of DB insert failure
+      // Show confirmation overlay regardless of DB failure
     }
     setIsSubmitting(false);
+    setShowAndonModal(false);
     setKioskState('alert-sent');
   };
 
@@ -56,6 +65,7 @@ export default function StationPage() {
     setKioskState('idle');
     setSop(null);
     setFetchError(null);
+    setShowAndonModal(false);
   };
 
   // ── Idle: NFC tap screen ──────────────────────────────────────────────────
@@ -85,7 +95,6 @@ export default function StationPage() {
           </div>
         )}
 
-        {/* Debug bypass — invisible unless you know to look */}
         <button
           onClick={handleClockIn}
           className="fixed bottom-3 right-4 text-zinc-800 hover:text-zinc-600 text-xs transition uppercase tracking-widest"
@@ -100,11 +109,7 @@ export default function StationPage() {
   if (kioskState === 'alert-sent') {
     return (
       <div className="h-screen bg-red-950 flex flex-col items-center justify-center gap-8 select-none overflow-hidden">
-        <AlertTriangle
-          size={140}
-          strokeWidth={1.5}
-          className="text-red-400 animate-pulse"
-        />
+        <AlertTriangle size={140} strokeWidth={1.5} className="text-red-400 animate-pulse" />
         <div className="text-center px-8">
           <p className="text-red-400 text-7xl font-black uppercase tracking-widest mb-4">
             ALERT SENT
@@ -165,13 +170,55 @@ export default function StationPage() {
       {/* Andon Cord — pinned footer */}
       <footer className="shrink-0">
         <button
-          onClick={handleAndon}
-          disabled={isSubmitting}
-          className="w-full bg-red-600 hover:bg-red-700 active:bg-red-900 text-white font-black text-3xl uppercase tracking-widest py-9 transition-colors border-t-4 border-red-500 shadow-[0_-6px_40px_rgba(239,68,68,0.35)] disabled:opacity-60 disabled:cursor-not-allowed select-none"
+          onClick={() => setShowAndonModal(true)}
+          className="w-full bg-red-600 hover:bg-red-700 active:bg-red-900 text-white font-black text-3xl uppercase tracking-widest py-9 transition-colors border-t-4 border-red-500 shadow-[0_-6px_40px_rgba(239,68,68,0.35)] select-none"
         >
-          {isSubmitting ? '⏳ TRANSMITTING...' : '🚨  PULL ANDON CORD — REPORT ISSUE'}
+          🚨  PULL ANDON CORD — REPORT ISSUE
         </button>
       </footer>
+
+      {/* ── Andon category modal ── */}
+      {showAndonModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-6">
+          <div className="bg-[#121212] border border-red-700 rounded-2xl p-8 w-full max-w-lg shadow-2xl">
+
+            <div className="mb-8 text-center">
+              <p className="text-red-500 text-xs font-bold uppercase tracking-widest mb-2">Andon Cord Activated</p>
+              <h2 className="text-white text-4xl font-black uppercase tracking-wide">
+                What is the issue?
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {ANDON_CATEGORIES.map(({ label, color }) => (
+                <button
+                  key={label}
+                  onClick={() => handleAndonCategory(label)}
+                  disabled={isSubmitting}
+                  className={[
+                    'py-8 px-4 rounded-xl font-black text-xl uppercase tracking-widest transition',
+                    'border-2 bg-zinc-900 hover:brightness-125 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed',
+                    color === 'red'
+                      ? 'border-red-600 text-red-400 hover:bg-red-950'
+                      : 'border-[#D4AF37] text-[#D4AF37] hover:bg-yellow-950/30',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowAndonModal(false)}
+              disabled={isSubmitting}
+              className="mt-6 w-full py-3 rounded-lg text-zinc-600 hover:text-zinc-400 text-sm uppercase tracking-widest transition disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
