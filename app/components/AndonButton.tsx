@@ -84,7 +84,7 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
 
     const { error } = await supabase
       .from('quality_alerts')
-      .insert([{ sop_id: sopId, issue_description: issue, reporter_id: user?.id ?? null }]);
+      .insert([{ sop_id: sopId, issue_description: issue, reporter_id: user?.id ?? null, status: 'Open' }]);
 
     if (error) {
       alert("Failed to send alert.");
