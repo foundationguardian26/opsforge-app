@@ -50,7 +50,7 @@ export default function NFCLogin() {
       .single();
 
     if (dbError || !profile) {
-      setError('Badge not recognized.');
+      setError(`Badge not recognized (ID: ${serialNumber})`);
     } else {
       setOperator(profile as OperatorProfile);
     }
