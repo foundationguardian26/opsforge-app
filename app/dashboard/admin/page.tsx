@@ -3,13 +3,38 @@ import { supabase } from '../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminDashboard() {
-  const { data: alerts } = await supabase
-    .from('quality_alerts')
-    .select('id, sop_id, issue_description, operator_name, reporter_id, status, created_at')
-    .order('created_at', { ascending: false });
+interface AlertRow {
+  id: string;
+  sop_id: string | null;
+  issue_description: string | null;
+  operator_name: string | null;
+  reporter_id: string | null;
+  status: string;
+  created_at: string;
+}
 
-  const rows = alerts ?? [];
+export default async function AdminDashboard() {
+  let rows: AlertRow[] = [];
+  let fetchError: string | null = null;
+
+  try {
+    const query = supabase
+      .from('quality_alerts')
+      .select('id, sop_id, issue_description, operator_name, reporter_id, status, created_at')
+      .order('created_at', { ascending: false });
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Database query timed out after 5 seconds.')), 5000)
+    );
+
+    const { data, error } = await Promise.race([query, timeout]);
+
+    if (error) throw new Error(error.message);
+    rows = data ?? [];
+  } catch (err: unknown) {
+    fetchError = err instanceof Error ? err.message : 'An unknown error occurred.';
+  }
+
   const total = rows.length;
   const resolved = rows.filter((a) => a.status === 'Resolved').length;
   const active = total - resolved;
@@ -31,6 +56,17 @@ export default async function AdminDashboard() {
         </span>
       </header>
 
+      {/* ── Fetch error banner ── */}
+      {fetchError && (
+        <div className="mb-8 bg-red-950 border border-red-600 text-red-400 p-4 rounded-lg text-sm font-bold">
+          <p className="uppercase tracking-widest text-xs mb-1">Data Fetch Error</p>
+          <p className="font-mono text-xs">{fetchError}</p>
+          <p className="text-red-600 text-xs mt-2">
+            Metrics below reflect 0 records. Check RLS policies on the quality_alerts table or Supabase connectivity.
+          </p>
+        </div>
+      )}
+
       {/* ── KPI Cards ── */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
 
@@ -51,7 +87,7 @@ export default async function AdminDashboard() {
           <p className="text-6xl font-black text-[#D4AF37] leading-none">{resolutionRate}%</p>
           <div className="mt-2 h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#D4AF37] rounded-full transition-all"
+              className="h-full bg-[#D4AF37] rounded-full"
               style={{ width: `${resolutionRate}%` }}
             />
           </div>
@@ -72,8 +108,10 @@ export default async function AdminDashboard() {
 
         {rows.length === 0 ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-12 text-center">
-            <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm">No alerts on record</p>
-            <p className="text-zinc-700 text-xs mt-2">The floor is quiet. All clear.</p>
+            <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm">0 Active Alerts</p>
+            <p className="text-zinc-700 text-xs mt-2">
+              {fetchError ? 'Could not load alert data.' : 'The floor is quiet. All clear.'}
+            </p>
           </div>
         ) : (
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden shadow-lg">
@@ -96,19 +134,16 @@ export default async function AdminDashboard() {
                   return (
                     <tr
                       key={alert.id}
-                      className={`border-b border-zinc-800/60 transition-colors hover:bg-zinc-800/40 ${i % 2 === 0 ? '' : 'bg-zinc-900/50'}`}
+                      className={`border-b border-zinc-800/60 transition-colors hover:bg-zinc-800/40 ${i % 2 !== 0 ? 'bg-zinc-900/50' : ''}`}
                     >
-                      {/* Description */}
                       <td className="px-6 py-4 text-zinc-300 max-w-xs">
                         <p className="line-clamp-2 leading-snug">{alert.issue_description || '—'}</p>
                       </td>
 
-                      {/* Operator */}
                       <td className="px-6 py-4 text-zinc-400 whitespace-nowrap font-mono text-xs">
                         {operator}
                       </td>
 
-                      {/* Status */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         {isResolved ? (
                           <span className="inline-flex items-center gap-2 text-green-400 font-bold text-xs uppercase tracking-widest">
@@ -126,7 +161,6 @@ export default async function AdminDashboard() {
                         )}
                       </td>
 
-                      {/* Date */}
                       <td className="px-6 py-4 text-zinc-500 text-xs whitespace-nowrap">
                         {new Date(alert.created_at).toLocaleDateString('en-US', {
                           month: 'short',
