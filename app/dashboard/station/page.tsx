@@ -62,8 +62,11 @@ export default function StationPage() {
   if (kioskState === 'idle') {
     return (
       <div className="h-screen bg-[#121212] flex flex-col items-center justify-center gap-10 select-none overflow-hidden">
-        <div className="flex flex-col items-center gap-8">
-          <div className="animate-pulse p-8 rounded-full border-2 border-[#D4AF37]/30 bg-[#D4AF37]/5">
+        <div
+          onClick={handleClockIn}
+          className="flex flex-col items-center gap-8 cursor-pointer"
+        >
+          <div className="animate-pulse p-8 rounded-full border-2 border-[#D4AF37]/30 bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 transition-colors">
             <Nfc size={140} strokeWidth={1} className="text-[#D4AF37]" />
           </div>
           <div className="text-center">
