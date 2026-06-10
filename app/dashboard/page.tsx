@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import AlertsSection from '../components/AlertsSection';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function Dashboard() {
   const { data: sops } = await supabase.from('sops').select('*');
