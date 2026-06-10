@@ -26,27 +26,31 @@ export default function AlertsSection({ alerts }: { alerts: any[] }) {
     }
   };
 
-  if (alerts.length === 0) return null;
-
   return (
     <section className="mb-10">
       <h2 className="text-2xl font-bold text-red-500 mb-4 flex items-center gap-2">
-        ⚠️ Quality Alerts
-        <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-          {alerts.length}
-        </span>
+        ⚠️ Active Quality Alerts
+        {alerts.length > 0 && (
+          <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+            {alerts.length}
+          </span>
+        )}
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {alerts.map((alert) => (
-          <AlertCard
-            key={alert.id}
-            alert={alert}
-            isResolving={resolvingId === alert.id}
-            resolveError={errorId === alert.id}
-            resolveAlert={() => resolveAlert(alert.id)}
-          />
-        ))}
-      </div>
+      {alerts.length === 0 ? (
+        <p className="text-zinc-500 text-sm">No active alerts. All clear.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {alerts.map((alert) => (
+            <AlertCard
+              key={alert.id}
+              alert={alert}
+              isResolving={resolvingId === alert.id}
+              resolveError={errorId === alert.id}
+              resolveAlert={() => resolveAlert(alert.id)}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
