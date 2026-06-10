@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
+import NFCLogin from '../components/NFCLogin';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -111,6 +112,13 @@ export default function Login() {
         
         <div className="mt-8 text-center">
           <Link href="/" className="text-zinc-500 hover:text-zinc-300 text-sm transition">← Back to Homepage</Link>
+        </div>
+
+        <div className="mt-8 border-t border-zinc-700 pt-8">
+          <p className="text-zinc-500 text-xs uppercase tracking-widest text-center mb-4">
+            Or tap your badge
+          </p>
+          <NFCLogin />
         </div>
       </div>
     </div>
