@@ -2,8 +2,10 @@
 
 import { useState, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useOperator } from '../context/OperatorContext';
 
 export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTitle: string }) {
+  const { activeOperator } = useOperator();
   const [isOpen, setIsOpen] = useState(false);
   const [issue, setIssue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,13 +80,21 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
   };
 
   const pullTheCord = async () => {
+    if (!activeOperator) return;
     setIsSubmitting(true);
 
     const { data: { user } } = await supabase.auth.getUser();
 
     const { error } = await supabase
       .from('quality_alerts')
-      .insert([{ sop_id: sopId, issue_description: issue, reporter_id: user?.id ?? null, status: 'Open' }]);
+      .insert([{
+        sop_id: sopId,
+        issue_description: issue,
+        reporter_id: user?.id ?? null,
+        operator_id: activeOperator.id,
+        operator_name: activeOperator.full_name,
+        status: 'Open',
+      }]);
 
     if (error) {
       alert("Failed to send alert.");
@@ -105,8 +115,12 @@ export default function AndonButton({ sopId, sopTitle }: { sopId: number, sopTit
 
   return (
     <div className="mt-8 border-t border-zinc-800 pt-8">
-      {!isOpen ? (
-        <button 
+      {!activeOperator ? (
+        <div className="w-full bg-zinc-900 border border-zinc-700 text-zinc-500 font-bold py-4 rounded-lg text-center uppercase tracking-widest text-sm">
+          Tap Badge to Enable Controls
+        </div>
+      ) : !isOpen ? (
+        <button
           onClick={() => setIsOpen(true)}
           className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg transition uppercase tracking-widest border border-red-500"
         >

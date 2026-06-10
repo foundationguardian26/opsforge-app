@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useOperator } from '../context/OperatorContext';
 
 // Type declarations for the experimental Web NFC API (not in standard TypeScript lib)
 declare global {
@@ -28,6 +29,7 @@ interface OperatorProfile {
 }
 
 export default function NFCLogin() {
+  const { setActiveOperator } = useOperator();
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [operator, setOperator] = useState<OperatorProfile | null>(null);
@@ -52,7 +54,9 @@ export default function NFCLogin() {
     if (dbError || !profile) {
       setError(`Badge not recognized (ID: ${serialNumber})`);
     } else {
-      setOperator(profile as OperatorProfile);
+      const p = profile as OperatorProfile;
+      setOperator(p);
+      setActiveOperator({ id: p.id, full_name: p.full_name, role: p.role });
     }
   };
 
@@ -88,6 +92,7 @@ export default function NFCLogin() {
   const clearOperator = () => {
     abortRef.current?.abort();
     setOperator(null);
+    setActiveOperator(null);
     setError(null);
     setIsScanning(false);
   };
