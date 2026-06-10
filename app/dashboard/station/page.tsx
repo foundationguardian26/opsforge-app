@@ -25,6 +25,7 @@ export default function StationPage() {
   const [isLoading, setIsLoading]             = useState(false);
   const [kioskState, setKioskState]           = useState<KioskState>('idle');
   const [sop, setSop]                         = useState<Sop | null>(null);
+  const [activeAlertId, setActiveAlertId]     = useState<string | null>(null);
   const [showAndonModal, setShowAndonModal]   = useState(false);
   const [isSubmitting, setIsSubmitting]       = useState(false);
   const [fetchError, setFetchError]           = useState<string | null>(null);
@@ -46,6 +47,21 @@ export default function StationPage() {
 
         if (error) throw error;
         setSop(data);
+
+        // Check for an existing open alert on this SOP
+        const { data: existingAlert } = await supabase
+          .from('quality_alerts')
+          .select('id')
+          .eq('sop_id', data.id)
+          .eq('status', 'Open')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (existingAlert?.id) {
+          setActiveAlertId(String(existingAlert.id));
+        }
+
         setKioskState('active');
       } catch (err: unknown) {
         setFetchError(err instanceof Error ? err.message : 'Failed to load procedure.');
@@ -61,11 +77,17 @@ export default function StationPage() {
   const handleAndonCategory = async (category: string) => {
     setIsSubmitting(true);
     try {
-      await supabase.from('quality_alerts').insert([{
-        sop_id: sop?.id ?? null,
-        issue_description: `Andon Pulled: ${category}`,
-        status: 'Open',
-      }]);
+      const { data } = await supabase
+        .from('quality_alerts')
+        .insert([{
+          sop_id: sop?.id ?? null,
+          issue_description: `Andon Pulled: ${category}`,
+          status: 'Open',
+        }])
+        .select('id')
+        .single();
+
+      if (data?.id) setActiveAlertId(String(data.id));
     } catch {
       // Show confirmation overlay regardless of DB failure
     }
@@ -74,10 +96,26 @@ export default function StationPage() {
     setKioskState('alert-sent');
   };
 
+  const handleCancelAlert = async () => {
+    if (!activeAlertId) return;
+    setIsSubmitting(true);
+    try {
+      await supabase
+        .from('quality_alerts')
+        .update({ status: 'Resolved' })
+        .eq('id', activeAlertId);
+    } catch {
+      // Best effort — clear UI state regardless
+    }
+    setActiveAlertId(null);
+    setIsSubmitting(false);
+  };
+
   const handleReset = () => {
     setIsAuthenticated(false);
     setKioskState('idle');
     setSop(null);
+    setActiveAlertId(null);
     setFetchError(null);
     setShowAndonModal(false);
   };
@@ -158,8 +196,22 @@ export default function StationPage() {
   }
 
   // ── Active station view ───────────────────────────────────────────────────
+  const hasActiveAlert = Boolean(activeAlertId);
+
   return (
-    <div className="h-screen bg-[#121212] flex flex-col overflow-hidden">
+    <div
+      className={[
+        'h-screen bg-[#121212] flex flex-col overflow-hidden transition-all',
+        hasActiveAlert
+          ? 'outline outline-8 outline-yellow-400 shadow-[inset_0_0_0_8px_theme(colors.yellow.400)]'
+          : '',
+      ].join(' ')}
+      style={hasActiveAlert ? { boxShadow: 'inset 0 0 0 8px #facc15, 0 0 60px rgba(250,204,21,0.4)' } : {}}
+    >
+      {/* Pulsing yellow border overlay when alert is active */}
+      {hasActiveAlert && (
+        <div className="pointer-events-none fixed inset-0 z-40 animate-pulse border-[12px] border-yellow-400 rounded-none" />
+      )}
 
       <header className="shrink-0 bg-zinc-900 border-b border-[#D4AF37] px-8 py-5 flex justify-between items-center">
         <div>
@@ -169,13 +221,23 @@ export default function StationPage() {
           </h1>
         </div>
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-2 bg-green-950 border border-green-700 text-green-400 text-xs font-bold px-4 py-2 rounded-full uppercase tracking-widest">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
+          {hasActiveAlert ? (
+            <span className="flex items-center gap-2 bg-yellow-950 border border-yellow-600 text-yellow-400 text-xs font-bold px-4 py-2 rounded-full uppercase tracking-widest animate-pulse">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-400" />
+              </span>
+              Alert Active
             </span>
-            Station Active
-          </span>
+          ) : (
+            <span className="flex items-center gap-2 bg-green-950 border border-green-700 text-green-400 text-xs font-bold px-4 py-2 rounded-full uppercase tracking-widest">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
+              </span>
+              Station Active
+            </span>
+          )}
           <button
             onClick={handleReset}
             className="text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest transition"
@@ -190,12 +252,22 @@ export default function StationPage() {
       </main>
 
       <footer className="shrink-0">
-        <button
-          onClick={() => setShowAndonModal(true)}
-          className="w-full bg-red-600 hover:bg-red-700 active:bg-red-900 text-white font-black text-3xl uppercase tracking-widest py-9 transition-colors border-t-4 border-red-500 shadow-[0_-6px_40px_rgba(239,68,68,0.35)] select-none"
-        >
-          🚨  PULL ANDON CORD — REPORT ISSUE
-        </button>
+        {hasActiveAlert ? (
+          <button
+            onClick={handleCancelAlert}
+            disabled={isSubmitting}
+            className="w-full bg-yellow-400 hover:bg-yellow-300 active:bg-yellow-500 text-black font-black text-3xl uppercase tracking-widest py-9 transition-colors border-t-4 border-yellow-300 shadow-[0_-6px_40px_rgba(250,204,21,0.5)] select-none disabled:opacity-60"
+          >
+            {isSubmitting ? 'RESOLVING...' : '✅  CANCEL ALERT / ISSUE RESOLVED'}
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowAndonModal(true)}
+            className="w-full bg-red-600 hover:bg-red-700 active:bg-red-900 text-white font-black text-3xl uppercase tracking-widest py-9 transition-colors border-t-4 border-red-500 shadow-[0_-6px_40px_rgba(239,68,68,0.35)] select-none"
+          >
+            🚨  PULL ANDON CORD — REPORT ISSUE
+          </button>
+        )}
       </footer>
 
       {showAndonModal && (

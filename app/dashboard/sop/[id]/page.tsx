@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabase';
 import AndonButton from '../../../components/AndonButton';
-import TagRenderer from '../../../components/TagRenderer';
+import SOPContent from '../../../components/SOPContent';
 
 export default async function SOPPage({ params }: { params: Promise<{ id: string }> }) {
   
@@ -55,7 +55,7 @@ export default async function SOPPage({ params }: { params: Promise<{ id: string
         )}
 
         <h2 className="text-2xl font-semibold mb-4 border-b border-zinc-800 pb-2">Procedure Details</h2>
-        <TagRenderer content={sop.description ?? ''} />
+        <SOPContent sopId={sop.id} content={sop.description ?? ''} />
 
         {/* The Digital Andon Cord */}
         <AndonButton sopId={sop.id} sopTitle={sop.title} />
