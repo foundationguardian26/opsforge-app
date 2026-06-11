@@ -2,10 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
 // Routes with their own auth mechanism that don't need a Supabase session.
 const KIOSK_PATHS = ['/dashboard/station'];
+
+const NAV_LINKS = [
+  { label: 'Plant Manager', href: '/dashboard/admin' },
+  { label: 'Tech Dispatch', href: '/dashboard/tech'  },
+  { label: 'Operator Kiosk', href: '/dashboard/station' },
+] as const;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -78,5 +85,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen bg-[#121212] flex flex-col">
+      <nav className="sticky top-0 z-50 bg-zinc-900 border-b border-zinc-800 shadow-lg">
+        <div className="px-4 sm:px-6 flex items-center justify-between h-14">
+          <span className="text-[#D4AF37] font-black text-base uppercase tracking-widest select-none hidden sm:block">
+            OpsForge
+          </span>
+          <div className="flex items-center gap-1 w-full sm:w-auto justify-around sm:justify-end">
+            {NAV_LINKS.map(({ label, href }) => {
+              const isActive = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={[
+                    'px-3 sm:px-5 py-2 rounded text-xs sm:text-sm font-bold uppercase tracking-widest transition-colors',
+                    isActive
+                      ? 'text-[#D4AF37] bg-zinc-800 border-b-2 border-[#D4AF37]'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800',
+                  ].join(' ')}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
+      <div className="flex-1">{children}</div>
+    </div>
+  );
 }
