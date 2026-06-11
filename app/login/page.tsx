@@ -3,25 +3,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
-import { useOperator } from '../context/OperatorContext';
 import Link from 'next/link';
 import NFCLogin from '../components/NFCLogin';
-
-interface OperatorProfile {
-  id: string;
-  full_name: string;
-  role: string;
-}
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isBypassing, setIsBypassing] = useState(false);
-  const [bypassError, setBypassError] = useState<string | null>(null);
   const router = useRouter();
-  const { setActiveOperator } = useOperator();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,28 +41,6 @@ export default function Login() {
       router.push('/dashboard');
     }
     setIsSubmitting(false);
-  };
-
-  const handleDevBypass = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    setIsBypassing(true);
-    setBypassError(null);
-
-    const { data: profile, error: dbError } = await supabase
-      .from('profiles')
-      .select('id, full_name, role')
-      .limit(1)
-      .single();
-
-    if (dbError || !profile) {
-      setBypassError('No operator profiles found. Add a row to the profiles table first.');
-      setIsBypassing(false);
-      return;
-    }
-
-    const p = profile as OperatorProfile;
-    setActiveOperator({ id: p.id, full_name: p.full_name, role: p.role });
-    router.push('/dashboard/station');
   };
 
   return (
@@ -145,18 +113,14 @@ export default function Login() {
           </p>
           <NFCLogin />
 
-          <div className="mt-4 text-center flex flex-col items-center gap-2">
+          <div className="mt-4 text-center">
             <button
               type="button"
-              onClick={handleDevBypass}
-              disabled={isBypassing}
-              className="text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest transition disabled:opacity-50"
+              onClick={() => router.push('/dashboard/station')}
+              className="text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest transition"
             >
-              {isBypassing ? 'Loading...' : 'Simulate Badge Tap (Dev Mode)'}
+              Simulate Badge Tap (Dev Mode)
             </button>
-            {bypassError && (
-              <p className="text-red-400 text-xs">{bypassError}</p>
-            )}
           </div>
         </div>
 
