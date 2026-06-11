@@ -2,17 +2,22 @@ import { NextResponse } from "next/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface Biometrics {
+  heartRate:   number; // BPM
+  respiration: number; // breaths/min
+  posture:     string; // 'standing' | 'sitting' | 'fallen' | 'unknown'
+}
+
 interface AmbientHazards {
-  voc: number;      // mg/m³
+  voc:      number; // mg/m³
   humidity: number; // % RH
 }
 
 interface TelemetryPayload {
-  stationId: string;
+  stationId:       string;
   operatorPresent: boolean;
-  breathingDetected: boolean;
-  motionLevel: number;       // 0.0–10.0 normalised scale
-  ambientHazards: AmbientHazards;
+  biometrics:      Biometrics;
+  ambientHazards:  AmbientHazards;
 }
 
 type SafetyStatus = "safe" | "lockout";
@@ -20,10 +25,12 @@ type SafetyStatus = "safe" | "lockout";
 // ── Safety thresholds ─────────────────────────────────────────────────────────
 
 const THRESHOLDS = {
-  voc: 0.50,        // mg/m³  — ENG-CHEM-019-REV2
-  humidity: 80,     // % RH   — stop-work threshold, SOP-2047
-  motionLevel: 5.0, // normalised — above = uncontrolled movement / intrusion
+  voc:          0.50,  // mg/m³ — ENG-CHEM-019-REV2
+  humidity:     80,    // % RH  — stop-work threshold, SOP-2047
+  heartRateHigh: 120,  // BPM   — tachycardia distress threshold
 } as const;
+
+const VALID_POSTURES = new Set(["standing", "sitting", "fallen", "unknown"]);
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -44,16 +51,30 @@ function validate(raw: unknown): ValidationResult {
   if (typeof b.operatorPresent !== "boolean") {
     return { ok: false, error: "operatorPresent: required boolean." };
   }
-  if (typeof b.breathingDetected !== "boolean") {
-    return { ok: false, error: "breathingDetected: required boolean." };
+
+  // ── biometrics block ──────────────────────────────────────────────────────
+  if (!b.biometrics || typeof b.biometrics !== "object" || Array.isArray(b.biometrics)) {
+    return { ok: false, error: "biometrics: required object." };
   }
-  if (typeof b.motionLevel !== "number" || b.motionLevel < 0) {
-    return { ok: false, error: "motionLevel: required non-negative number." };
+  const bio = b.biometrics as Record<string, unknown>;
+
+  if (typeof bio.heartRate !== "number" || bio.heartRate < 0) {
+    return { ok: false, error: "biometrics.heartRate: required non-negative number (BPM)." };
   }
+  if (typeof bio.respiration !== "number" || bio.respiration < 0) {
+    return { ok: false, error: "biometrics.respiration: required non-negative number (breaths/min)." };
+  }
+  if (typeof bio.posture !== "string" || !VALID_POSTURES.has(bio.posture)) {
+    return {
+      ok: false,
+      error: `biometrics.posture: must be one of: ${[...VALID_POSTURES].join(", ")}.`,
+    };
+  }
+
+  // ── ambientHazards block ──────────────────────────────────────────────────
   if (!b.ambientHazards || typeof b.ambientHazards !== "object" || Array.isArray(b.ambientHazards)) {
     return { ok: false, error: "ambientHazards: required object." };
   }
-
   const h = b.ambientHazards as Record<string, unknown>;
 
   if (typeof h.voc !== "number" || h.voc < 0) {
@@ -66,10 +87,13 @@ function validate(raw: unknown): ValidationResult {
   return {
     ok: true,
     payload: {
-      stationId: b.stationId.trim(),
+      stationId:       b.stationId.trim(),
       operatorPresent: b.operatorPresent,
-      breathingDetected: b.breathingDetected,
-      motionLevel: b.motionLevel,
+      biometrics: {
+        heartRate:   bio.heartRate,
+        respiration: bio.respiration,
+        posture:     bio.posture,
+      },
       ambientHazards: { voc: h.voc, humidity: h.humidity },
     },
   };
@@ -79,19 +103,18 @@ function validate(raw: unknown): ValidationResult {
 
 interface SafetyResult {
   status: SafetyStatus;
-  flags: string[];
+  flags:  string[];
 }
 
 function evaluateSafety(p: TelemetryPayload): SafetyResult {
   const flags: string[] = [];
 
-  // Operator present with no breathing signal = incapacitation risk
-  if (p.operatorPresent && !p.breathingDetected) {
-    flags.push("PRESENCE_NO_BREATHING");
+  // Biometric distress: fallen posture or tachycardia (heartRate > 120 BPM
+  // indicates distress in an operator detected as stationary by RuView CSI).
+  if (p.biometrics.posture === "fallen" || p.biometrics.heartRate > THRESHOLDS.heartRateHigh) {
+    flags.push("BIOMETRIC_DISTRESS");
   }
-  if (p.motionLevel > THRESHOLDS.motionLevel) {
-    flags.push("MOTION_THRESHOLD_EXCEEDED");
-  }
+
   if (p.ambientHazards.voc > THRESHOLDS.voc) {
     flags.push("VOC_THRESHOLD_EXCEEDED");
   }
@@ -128,7 +151,18 @@ export async function POST(request: Request) {
   const timestamp = new Date().toISOString();
 
   // ── Extension point: persist to database ──────────────────────────────────
-  // await db.telemetry.create({ data: { ...payload, status, flags, timestamp } });
+  // await supabase.from('telemetry').insert({
+  //   station_id:        payload.stationId,
+  //   operator_present:  payload.operatorPresent,
+  //   heart_rate_bpm:    payload.biometrics.heartRate,
+  //   respiration_rate:  payload.biometrics.respiration,
+  //   posture_state:     payload.biometrics.posture,
+  //   voc:               payload.ambientHazards.voc,
+  //   humidity:          payload.ambientHazards.humidity,
+  //   safety_status:     status,
+  //   flags:             flags,
+  //   created_at:        timestamp,
+  // });
 
   // ── Extension point: broadcast to local WebSocket layer ───────────────────
   // wss.clients.forEach((client) => {
@@ -138,7 +172,14 @@ export async function POST(request: Request) {
   // });
 
   return NextResponse.json(
-    { ok: true, stationId: payload.stationId, status, flags, timestamp },
+    {
+      ok:        true,
+      stationId: payload.stationId,
+      status,
+      flags,
+      biometrics: payload.biometrics,
+      timestamp,
+    },
     { status: 200 },
   );
 }
