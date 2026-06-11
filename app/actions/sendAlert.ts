@@ -50,29 +50,25 @@ async function trySendEmail(message: string, subject: string): Promise<boolean> 
   return false;
 }
 
-async function trySendSMS(message: string): Promise<boolean> {
+async function trySendSMS(payload: AlertPayload): Promise<boolean> {
   const sid   = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
-  const from  = process.env.TWILIO_FROM_NUMBER;
-  const to    = process.env.ALERT_PHONE_NUMBER;
-  if (!sid || !token || !from || !to) return false;
+  const from  = process.env.TWILIO_PHONE_NUMBER;
+  if (!sid || !token || !from) return false;
+
+  const time = new Date(payload.timestamp).toLocaleString('en-US', {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+  });
+  const body = `🚨 URGENT: Andon Pulled | Station: ${payload.stationName} | Issue: ${payload.issueType} | Time: ${time}`;
 
   try {
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({ To: to, From: from, Body: message }).toString(),
-      },
-    );
-    if (res.ok) return true;
-    console.error('[sendAlert] Twilio rejected:', await res.text());
+    const twilio = (await import('twilio')).default;
+    const client = twilio(sid, token);
+    await client.messages.create({ from, to: '+18775366360', body });
+    return true;
   } catch (err) {
-    console.error('[sendAlert] Twilio fetch failed:', err);
+    console.error('[sendAlert] Twilio SMS failed:', err);
   }
   return false;
 }
@@ -92,7 +88,7 @@ export async function sendAlert(payload: AlertPayload): Promise<{ ok: boolean; c
   }
 
   // 2. Fall back to SMS (Twilio)
-  if (await trySendSMS(message)) {
+  if (await trySendSMS(payload)) {
     return { ok: true, channel: 'sms' };
   }
 
