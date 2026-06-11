@@ -4,96 +4,84 @@ export interface AlertPayload {
   stationName: string;
   issueType: string;
   alertId: string;
-  timestamp: string;  // ISO 8601
+  timestamp: string; // ISO 8601
 }
 
-function formatMessage(p: AlertPayload): string {
+function formatHtml(p: AlertPayload): string {
   const time = new Date(p.timestamp).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  });
-  return [
-    `🚨 ANDON ALERT — OpsForge`,
-    `Station : ${p.stationName}`,
-    `Issue   : ${p.issueType}`,
-    `Time    : ${time}`,
-    `Alert ID: ${p.alertId}`,
-    `Action  : Respond to station immediately.`,
-  ].join('\n');
-}
-
-async function trySendEmail(message: string, subject: string): Promise<boolean> {
-  const apiKey  = process.env.RESEND_API_KEY;
-  const toEmail = process.env.ALERT_EMAIL_TO;
-  if (!apiKey || !toEmail) return false;
-
-  const from = process.env.RESEND_FROM_EMAIL ?? 'OpsForge Alerts <alerts@opsforge.app>';
-
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from, to: [toEmail], subject, text: message }),
-    });
-    if (res.ok) return true;
-    console.error('[sendAlert] Resend rejected:', await res.text());
-  } catch (err) {
-    console.error('[sendAlert] Resend fetch failed:', err);
-  }
-  return false;
-}
-
-async function trySendSMS(payload: AlertPayload): Promise<boolean> {
-  const sid   = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from  = process.env.TWILIO_PHONE_NUMBER;
-  if (!sid || !token || !from) return false;
-
-  const time = new Date(payload.timestamp).toLocaleString('en-US', {
-    month: 'short', day: 'numeric',
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
   });
-  const body = `🚨 URGENT: Andon Pulled | Station: ${payload.stationName} | Issue: ${payload.issueType} | Time: ${time}`;
+  return `
+<div style="font-family:helvetica,sans-serif;max-width:600px;margin:0 auto;background:#121212;color:#ffffff;border-radius:8px;overflow:hidden;">
+  <div style="background:#D4AF37;padding:24px 32px;">
+    <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#121212;">OpsForge Operations Platform</p>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:900;color:#121212;text-transform:uppercase;letter-spacing:2px;">🚨 Andon Alert</h1>
+  </div>
+  <div style="padding:32px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;width:38%;">Station</td>
+        <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;color:#ffffff;font-size:15px;font-weight:700;">${p.stationName}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Issue</td>
+        <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;color:#ef4444;font-size:15px;font-weight:700;">${p.issueType}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Time</td>
+        <td style="padding:12px 0;border-bottom:1px solid #2a2a2a;color:#ffffff;font-size:13px;">${time}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 0;color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Alert ID</td>
+        <td style="padding:12px 0;color:#6b7280;font-size:12px;font-family:monospace;">${p.alertId}</td>
+      </tr>
+    </table>
+    <div style="margin-top:24px;background:#1a1a1a;border:1px solid #D4AF37;border-radius:6px;padding:16px;">
+      <p style="margin:0;color:#D4AF37;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">⚡ Respond to station immediately</p>
+    </div>
+  </div>
+  <div style="padding:14px 32px;background:#0a0a0a;text-align:center;">
+    <p style="margin:0;color:#4b5563;font-size:11px;">OpsForge — Automated Alert System</p>
+  </div>
+</div>`.trim();
+}
+
+async function trySendEmail(payload: AlertPayload): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return false;
 
   try {
-    const twilio = (await import('twilio')).default;
-    const client = twilio(sid, token);
-    await client.messages.create({ from, to: '+18179080500', body });
+    const { Resend } = await import('resend');
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: 'foundationguardian26@gmail.com',
+      subject: `🚨 URGENT: Andon Cord Pulled - Station ${payload.stationName}`,
+      html: formatHtml(payload),
+    });
+    if (error) {
+      console.error('[sendAlert] Resend error:', error);
+      return false;
+    }
     return true;
   } catch (err) {
-    console.error('[sendAlert] Twilio SMS failed:', err);
+    console.error('[sendAlert] Resend failed:', err);
   }
   return false;
 }
 
-/**
- * Sends an Andon alert via Resend (email) or Twilio (SMS).
- * If neither set of env vars is present, logs the would-be message and returns
- * safely — it will never throw or crash the calling flow.
- */
-export async function sendAlert(payload: AlertPayload): Promise<{ ok: boolean; channel: 'email' | 'sms' | 'console' }> {
-  const message = formatMessage(payload);
-  const subject = `🚨 Andon Alert — ${payload.issueType} at ${payload.stationName}`;
-
-  // 1. Try email first (Resend)
-  if (await trySendEmail(message, subject)) {
+export async function sendAlert(payload: AlertPayload): Promise<{ ok: boolean; channel: 'email' | 'console' }> {
+  if (await trySendEmail(payload)) {
     return { ok: true, channel: 'email' };
   }
 
-  // 2. Fall back to SMS (Twilio)
-  if (await trySendSMS(payload)) {
-    return { ok: true, channel: 'sms' };
-  }
-
-  // 3. Graceful degradation — no keys configured
-  console.log('[sendAlert] No notification provider configured. Message that would have been sent:');
-  console.log(message);
+  // Graceful degradation — RESEND_API_KEY not set or send failed
+  const time = new Date(payload.timestamp).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+  });
+  console.log('[sendAlert] No email sent. Alert details:');
+  console.log(`Station: ${payload.stationName} | Issue: ${payload.issueType} | Time: ${time} | ID: ${payload.alertId}`);
   return { ok: true, channel: 'console' };
 }
