@@ -23,7 +23,7 @@ export default function Login() {
     if (error) {
       setErrorMsg(error.message);
     } else {
-      router.push('/dashboard');
+      router.push('/dashboard/admin');
     }
     setIsSubmitting(false);
   };
@@ -38,7 +38,7 @@ export default function Login() {
     if (error) {
       setErrorMsg(error.message);
     } else {
-      router.push('/dashboard');
+      router.push('/dashboard/admin');
     }
     setIsSubmitting(false);
   };

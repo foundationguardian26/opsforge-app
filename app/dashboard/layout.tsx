@@ -4,23 +4,24 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 
+// Routes with their own auth mechanism that don't need a Supabase session.
+const KIOSK_PATHS = ['/dashboard/station'];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // The kiosk has its own NFC-based auth — no Supabase session required.
-  if (pathname === '/dashboard/station') {
-    return <>{children}</>;
-  }
-
+  // All hooks must be called unconditionally before any early returns.
   useEffect(() => {
+    // Kiosk has its own NFC-based auth — skip the Supabase session gate.
+    if (KIOSK_PATHS.includes(pathname)) return;
+
     let timer: ReturnType<typeof setTimeout>;
 
     const checkAuth = async () => {
       try {
-        // Kill the spinner after 5 s regardless of what Supabase does
         timer = setTimeout(() => {
           setAuthError('Connection timed out. Please refresh the page.');
         }, 5000);
@@ -45,7 +46,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     checkAuth();
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, pathname]);
+
+  // Kiosk routes bypass the Supabase session gate entirely.
+  if (KIOSK_PATHS.includes(pathname)) {
+    return <>{children}</>;
+  }
 
   if (authError) {
     return (
