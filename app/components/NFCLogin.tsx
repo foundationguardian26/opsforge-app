@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { useOperator } from '../context/OperatorContext';
 
@@ -31,13 +30,10 @@ interface OperatorProfile {
 
 export default function NFCLogin() {
   const { setActiveOperator } = useOperator();
-  const router = useRouter();
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [operator, setOperator] = useState<OperatorProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isBypassing, setIsBypassing] = useState(false);
-  const [bypassError, setBypassError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -93,27 +89,6 @@ export default function NFCLogin() {
     }
   };
 
-  const handleDevBypass = async () => {
-    setIsBypassing(true);
-    setBypassError(null);
-
-    const { data: profile, error: dbError } = await supabase
-      .from('profiles')
-      .select('*')
-      .limit(1)
-      .single();
-
-    if (dbError || !profile) {
-      setBypassError('No operator profiles found in the profiles table.');
-      setIsBypassing(false);
-      return;
-    }
-
-    const p = profile as OperatorProfile;
-    setActiveOperator({ id: p.id, full_name: p.full_name, role: p.role });
-    router.push('/dashboard/station');
-  };
-
   const clearOperator = () => {
     abortRef.current?.abort();
     setOperator(null);
@@ -127,21 +102,10 @@ export default function NFCLogin() {
 
   if (!isSupported) {
     return (
-      <div className="bg-zinc-900 border border-red-800 p-6 rounded-lg text-center max-w-sm mx-auto flex flex-col gap-4">
+      <div className="bg-zinc-900 border border-red-800 p-6 rounded-lg text-center max-w-sm mx-auto">
         <p className="text-red-400 font-bold text-sm">
           NFC not supported on this device/browser. Please use an Android tablet with Chrome.
         </p>
-        <button
-          type="button"
-          onClick={handleDevBypass}
-          disabled={isBypassing}
-          className="text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest transition disabled:opacity-50"
-        >
-          {isBypassing ? 'Loading...' : 'Simulate Badge Tap (Dev Mode)'}
-        </button>
-        {bypassError && (
-          <p className="text-red-400 text-xs">{bypassError}</p>
-        )}
       </div>
     );
   }
