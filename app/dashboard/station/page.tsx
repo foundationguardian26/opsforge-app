@@ -158,6 +158,7 @@ export default function StationPage() {
         )}
 
         <button
+          type="button"
           onClick={() => setIsAuthenticated(true)}
           className="fixed bottom-3 right-4 text-zinc-800 hover:text-zinc-600 text-xs transition uppercase tracking-widest"
         >

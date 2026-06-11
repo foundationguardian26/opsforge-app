@@ -4,7 +4,7 @@
   "description": "Industrial operations management platform for factory floors.",
   "display": "standalone",
   "orientation": "any",
-  "start_url": "/dashboard",
+  "start_url": "/dashboard/admin",
   "scope": "/",
   "theme_color": "#000000",
   "background_color": "#000000",
