@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Nfc, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import TagRenderer from '../../components/TagRenderer';
+import { sendAlert } from '../../actions/sendAlert';
 
 type KioskState = 'idle' | 'active' | 'alert-sent';
 
@@ -87,7 +88,18 @@ export default function StationPage() {
         .select('id')
         .single();
 
-      if (data?.id) setActiveAlertId(String(data.id));
+      if (data?.id) {
+        const alertId = String(data.id);
+        setActiveAlertId(alertId);
+
+        // Fire notification — does not block the UI transition
+        sendAlert({
+          stationName: sop?.title ?? 'Station 01',
+          issueType: category,
+          alertId,
+          timestamp: new Date().toISOString(),
+        }).catch((err) => console.error('[station] sendAlert failed:', err));
+      }
     } catch {
       // Show confirmation overlay regardless of DB failure
     }
