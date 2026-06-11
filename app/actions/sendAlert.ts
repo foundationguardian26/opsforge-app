@@ -1,6 +1,7 @@
 'use server';
 
 import * as React from 'react';
+import { render } from '@react-email/render';
 import AndonAlertEmail from '../../emails/AndonAlertEmail';
 
 export interface AlertPayload {
@@ -18,6 +19,7 @@ async function trySendEmail(payload: AlertPayload): Promise<boolean> {
   const dashboardUrl = `${appUrl}/dashboard/supervisor`;
 
   const element = React.createElement(AndonAlertEmail, { ...payload, dashboardUrl });
+  const html = await render(element);
 
   try {
     const { Resend } = await import('resend');
@@ -26,7 +28,7 @@ async function trySendEmail(payload: AlertPayload): Promise<boolean> {
       from: 'onboarding@resend.dev',
       to: 'foundationguardian26@gmail.com',
       subject: `🚨 URGENT: Andon Cord Pulled - Station ${payload.stationName}`,
-      react: element,
+      html,
     });
     if (error) {
       console.error('[sendAlert] Resend error:', error);
