@@ -1,13 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // The kiosk has its own NFC-based auth — no Supabase session required.
+  if (pathname === '/dashboard/station') {
+    return <>{children}</>;
+  }
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
