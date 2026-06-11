@@ -65,7 +65,7 @@ async function trySendSMS(payload: AlertPayload): Promise<boolean> {
   try {
     const twilio = (await import('twilio')).default;
     const client = twilio(sid, token);
-    await client.messages.create({ from, to: '+18775366360', body });
+    await client.messages.create({ from, to: '+18179080500', body });
     return true;
   } catch (err) {
     console.error('[sendAlert] Twilio SMS failed:', err);
