@@ -9,9 +9,10 @@ import { supabase } from '../../lib/supabase';
 const KIOSK_PATHS = ['/dashboard/station'];
 
 const NAV_LINKS = [
-  { label: 'Plant Manager', href: '/dashboard/admin' },
-  { label: 'Tech Dispatch', href: '/dashboard/tech'  },
-  { label: 'Operator Kiosk', href: '/dashboard/station' },
+  { label: 'Plant Manager', href: '/dashboard/admin'      },
+  { label: 'Supervisor',    href: '/dashboard/supervisor' },
+  { label: 'Tech Dispatch', href: '/dashboard/tech'       },
+  { label: 'Operator Kiosk', href: '/dashboard/station'  },
 ] as const;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
