@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import AnalyticsCharts from '../../components/AnalyticsCharts';
+import ShiftReportButton from '../../components/ShiftReportButton';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://anmkzachozworppovcxi.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -56,9 +57,12 @@ export default async function AdminDashboard() {
           <h1 className="text-4xl font-bold text-[#D4AF37]">Plant Manager</h1>
           <p className="text-zinc-400 text-sm mt-1 uppercase tracking-widest">God Mode — Live Floor Intelligence</p>
         </div>
-        <span className="text-xs text-zinc-600 uppercase tracking-widest self-end pb-1">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </span>
+        <div className="flex flex-col items-end gap-3 self-end">
+          <ShiftReportButton />
+          <span className="text-xs text-zinc-600 uppercase tracking-widest">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </span>
+        </div>
       </header>
 
       {/* ── Fetch error banner ── */}

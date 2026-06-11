@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
+import ShiftReportButton from '../../components/ShiftReportButton';
 
 interface Alert {
   id: string;
@@ -99,13 +100,16 @@ export default function SupervisorPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
         {/* ── Header ── */}
-        <header className="mb-8 border-b border-[#D4AF37] pb-5">
-          <h1 className="text-3xl sm:text-4xl font-black text-[#D4AF37] uppercase tracking-widest">
-            Supervisor View
-          </h1>
-          <p className="text-zinc-500 text-xs uppercase tracking-widest mt-1">
-            Zone Intelligence Dashboard — Active Floor Alerts
-          </p>
+        <header className="mb-8 border-b border-[#D4AF37] pb-5 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-black text-[#D4AF37] uppercase tracking-widest">
+              Supervisor View
+            </h1>
+            <p className="text-zinc-500 text-xs uppercase tracking-widest mt-1">
+              Zone Intelligence Dashboard — Active Floor Alerts
+            </p>
+          </div>
+          <ShiftReportButton />
         </header>
 
         {/* ── Zone Filter ── */}
