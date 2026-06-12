@@ -122,6 +122,9 @@ export async function POST(request: Request) {
 
   const videoBuffer = Buffer.from(await videoFile.arrayBuffer());
 
+  const contextRaw = formData.get('context');
+  const context = typeof contextRaw === 'string' && contextRaw.trim() ? contextRaw.trim() : null;
+
   // ── 2. Extract frames ─────────────────────────────────────────────────────
   // GPT-4o processes images, not raw video bytes. Extracting 1 frame/second
   // and labelling each with its timestamp gives the model the temporal
@@ -170,6 +173,7 @@ export async function POST(request: Request) {
               text:
                 `The ${frames.length} frames above were extracted at 1 fps ` +
                 `(total video duration ≈ ${frames.length}s). ` +
+                (context ? `Process context: "${context}". ` : '') +
                 `Identify every distinct operation step and calculate ` +
                 `target_time_seconds precisely from the labelled frame timestamps.`,
             },

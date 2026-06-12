@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import VideoTimeStudyUploader from '../../components/VideoTimeStudyUploader';
 
 type GenerateStatus = 'idle' | 'loading' | 'done' | 'error';
 type PublishStatus = 'idle' | 'publishing' | 'error';
@@ -180,6 +181,25 @@ export default function SOPCreatorPage() {
 
         </div>
       </div>
+
+      {/* ── Divider ── */}
+      <div className="flex items-center gap-4 my-4">
+        <div className="flex-1 h-px bg-zinc-800" />
+        <span className="text-zinc-600 text-xs font-bold uppercase tracking-widest">or</span>
+        <div className="flex-1 h-px bg-zinc-800" />
+      </div>
+
+      {/* ── Video Time Study Section ── */}
+      <section>
+        <div className="mb-5">
+          <h2 className="text-xl font-bold text-[#D4AF37]">Automated Time Study</h2>
+          <p className="text-zinc-500 text-sm mt-1 uppercase tracking-widest">
+            Upload a process video — AI extracts frames and generates a TWI Job Element Sheet
+          </p>
+        </div>
+        <VideoTimeStudyUploader />
+      </section>
+
     </div>
   );
 }
