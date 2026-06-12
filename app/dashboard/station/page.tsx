@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Nfc, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Nfc, AlertTriangle, CheckCircle2, Video } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import TagRenderer from '../../components/TagRenderer';
 import { sendAlert } from '../../actions/sendAlert';
+import VideoAssist from '../../components/VideoAssist';
 
 type KioskState = 'idle' | 'active' | 'alert-sent';
 
@@ -30,6 +31,7 @@ export default function StationPage() {
   const [showAndonModal, setShowAndonModal]   = useState(false);
   const [isSubmitting, setIsSubmitting]       = useState(false);
   const [fetchError, setFetchError]           = useState<string | null>(null);
+  const [videoAssistOpen, setVideoAssistOpen] = useState(false);
 
   // Fires exactly once when the operator authenticates — never loops
   useEffect(() => {
@@ -130,6 +132,7 @@ export default function StationPage() {
     setActiveAlertId(null);
     setFetchError(null);
     setShowAndonModal(false);
+    setVideoAssistOpen(false);
   };
 
   // ── Idle: NFC tap / loading screen ───────────────────────────────────────
@@ -182,6 +185,39 @@ export default function StationPage() {
 
   // ── Full-screen alert overlay ─────────────────────────────────────────────
   if (kioskState === 'alert-sent') {
+    // ── Video assist mode — takes over the full screen ──────────────────────
+    if (videoAssistOpen) {
+      return (
+        <div className="h-screen bg-[#0d0d0d] flex flex-col overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between px-6 py-4 bg-[#121212] border-b border-[#D4AF37]/30">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+              </span>
+              <span className="text-white font-black text-sm uppercase tracking-widest">
+                Alert Active — Video Assist
+              </span>
+            </div>
+            <button
+              onClick={() => setVideoAssistOpen(false)}
+              className="text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase tracking-widest transition border border-zinc-700 hover:border-zinc-500 px-4 py-2 rounded-lg"
+            >
+              ← Back to Alert
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            <VideoAssist
+              roomName={activeAlertId ?? 'andon-room'}
+              participantName="Station-01"
+              onDisconnect={() => setVideoAssistOpen(false)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // ── Standard alert state ────────────────────────────────────────────────
     return (
       <div className="h-screen bg-red-950 flex flex-col items-center justify-center gap-8 select-none overflow-hidden">
         <AlertTriangle size={140} strokeWidth={1.5} className="text-red-400 animate-pulse" />
@@ -199,8 +235,15 @@ export default function StationPage() {
           </p>
         </div>
         <button
+          onClick={() => setVideoAssistOpen(true)}
+          className="flex items-center gap-3 bg-[#D4AF37] hover:bg-yellow-500 active:bg-yellow-600 text-black font-black text-2xl uppercase tracking-widest px-10 py-7 rounded-2xl transition-colors shadow-2xl shadow-yellow-900/50"
+        >
+          <Video size={32} strokeWidth={2} />
+          Request Video Assist
+        </button>
+        <button
           onClick={handleReset}
-          className="mt-6 bg-zinc-900 hover:bg-zinc-800 text-white font-bold px-12 py-5 rounded-lg uppercase tracking-widest text-lg transition border border-zinc-700"
+          className="bg-zinc-900 hover:bg-zinc-800 text-white font-bold px-12 py-5 rounded-lg uppercase tracking-widest text-lg transition border border-zinc-700"
         >
           Return to Station
         </button>
