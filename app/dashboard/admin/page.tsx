@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import AnalyticsCharts from '../../components/AnalyticsCharts';
 import ShiftReportButton from '../../components/ShiftReportButton';
+import LiveTelemetryWidget from '../../components/LiveTelemetryWidget';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://anmkzachozworppovcxi.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -103,6 +104,18 @@ export default async function AdminDashboard() {
           <p className="text-zinc-500 text-xs">{resolved} of {total} issues closed</p>
         </div>
 
+      </section>
+
+      {/* ── Vital Mesh — Live Station Monitor ── */}
+      <section className="mb-12">
+        <h2 className="text-xl font-bold text-white uppercase tracking-widest mb-4 flex items-center gap-3">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4AF37] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#D4AF37]" />
+          </span>
+          Vital Mesh — Station Monitor
+        </h2>
+        <LiveTelemetryWidget stationId="STATION-01" />
       </section>
 
       <AnalyticsCharts alerts={rows.map((r) => ({ status: r.status, created_at: r.created_at }))} />
