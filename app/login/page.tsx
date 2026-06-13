@@ -116,7 +116,7 @@ export default function Login() {
           <div className="mt-4 text-center">
             <button
               type="button"
-              onClick={() => router.push('/dashboard/station')}
+              onClick={() => router.push('/dashboard/station/chilled-water-pump')}
               className="text-zinc-600 hover:text-zinc-400 text-xs uppercase tracking-widest transition"
             >
               Simulate Badge Tap (Dev Mode)

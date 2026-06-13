@@ -6,13 +6,14 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
 // Routes with their own auth mechanism that don't need a Supabase session.
-const KIOSK_PATHS = ['/dashboard/station'];
+const KIOSK_PREFIX = '/dashboard/station';
+const isKioskPath = (path: string) => path.startsWith(KIOSK_PREFIX);
 
 const NAV_LINKS = [
   { label: 'Plant Manager', href: '/dashboard/admin'      },
   { label: 'Supervisor',    href: '/dashboard/supervisor' },
   { label: 'Tech Dispatch', href: '/dashboard/tech'       },
-  { label: 'Operator Kiosk', href: '/dashboard/station'  },
+  { label: 'Operator Kiosk', href: '/dashboard/station/chilled-water-pump'  },
 ] as const;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // All hooks must be called unconditionally before any early returns.
   useEffect(() => {
     // Kiosk has its own NFC-based auth — skip the Supabase session gate.
-    if (KIOSK_PATHS.includes(pathname)) return;
+    if (isKioskPath(pathname)) return;
 
     let timer: ReturnType<typeof setTimeout>;
 
@@ -57,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router, pathname]);
 
   // Kiosk routes bypass the Supabase session gate entirely.
-  if (KIOSK_PATHS.includes(pathname)) {
+  if (isKioskPath(pathname)) {
     return <>{children}</>;
   }
 
