@@ -36,10 +36,12 @@ export default function StationPage() {
     const fetchSop = async () => {
       setIsLoading(true);
 
+      const titleQuery = stationId.replaceAll('-', ' ');
+
       const { data } = await supabase
         .from('sops')
         .select('id, title, description')
-        .eq('id', Number(stationId))
+        .ilike('title', `%${titleQuery}%`)
         .maybeSingle();
 
       if (data) setSop(data);
