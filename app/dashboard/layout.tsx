@@ -13,7 +13,7 @@ const NAV_LINKS = [
   { label: 'Plant Manager', href: '/dashboard/admin'      },
   { label: 'Supervisor',    href: '/dashboard/supervisor' },
   { label: 'Tech Dispatch', href: '/dashboard/tech'       },
-  { label: 'Operator Kiosk', href: '/dashboard/station/chilled-water-pump'  },
+  { label: 'Operator Kiosk', href: '/dashboard/station'  },
 ] as const;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

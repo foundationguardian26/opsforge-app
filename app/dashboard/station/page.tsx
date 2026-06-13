@@ -22,7 +22,7 @@ export default function StationIndexPage() {
       const { data } = await supabase
         .from('sops')
         .select('id, title')
-        .order('title', { ascending: true });
+        .order('id', { ascending: true });
 
       if (data) setSops(data);
       setIsLoading(false);
