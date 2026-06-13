@@ -75,6 +75,25 @@ export default function StationPage() {
     }
   };
 
+  const handleResolveAndon = async () => {
+    if (!activeAlertId) {
+      setKioskState('active');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('quality_alerts')
+        .update({ status: 'Resolved' })
+        .eq('id', activeAlertId);
+      if (error) throw error;
+      setActiveAlertId(null);
+      setKioskState('active');
+    } catch (e) {
+      console.error("Failed to resolve Andon alert:", e);
+      alert("Could not clear the alert — check Supabase RLS/update policies. The line is still flagged.");
+    }
+  };
+
   // 1. IDLE STATE
   if (kioskState === 'idle') {
     return (
@@ -108,6 +127,9 @@ export default function StationPage() {
               <div className="w-2 h-2 rounded-full bg-green-500"></div>
               <span className="text-green-500 text-[10px] font-bold tracking-widest uppercase">Station Active</span>
             </div>
+          )}
+          {kioskState === 'alert-sent' && (
+            <button onClick={handleResolveAndon} className="bg-[#D4AF37] hover:bg-yellow-400 text-black px-8 py-4 text-xl font-black uppercase tracking-wider rounded-lg transition-all hover:scale-105 active:scale-95 shadow-xl">Stand Down Alert</button>
           )}
           <button className="text-zinc-500 text-[10px] font-bold tracking-widest uppercase hover:text-white transition-colors">
             Clock Out
