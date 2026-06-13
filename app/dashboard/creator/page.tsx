@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -17,11 +17,52 @@ export default function SOPCreatorPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [publishError, setPublishError] = useState('');
   const [toast, setToast] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [micError, setMicError] = useState('');
+  const recognitionRef = useRef<any>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3500);
   }, []);
+
+  const startListening = () => {
+    setMicError('');
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setMicError('Voice dictation is not supported on this browser. Please try Chrome, Edge, or Safari.');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+      }
+      if (finalTranscript) setTranscript((prev) => prev ? prev + ' ' + finalTranscript : finalTranscript);
+    };
+    recognition.onerror = (event: any) => {
+      if (event.error === 'not-allowed') {
+        setMicError('Microphone blocked. If you are using Brave, please switch to Chrome or Edge.');
+      } else if (event.error === 'network') {
+        setMicError('Network error. Voice recognition requires an active internet connection.');
+      } else if (event.error !== 'no-speech') {
+        setMicError(`Mic Error: ${event.error}. Please type manually.`);
+      }
+      setIsListening(false);
+    };
+    recognition.onend = () => setIsListening(false);
+    try { recognition.start(); } catch (e) { console.error('Failed to start recognition', e); }
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  };
 
   const handleGenerate = async () => {
     if (!transcript.trim()) return;
@@ -105,9 +146,27 @@ export default function SOPCreatorPage() {
 
         {/* ── Left Column: Input ── */}
         <div className="flex flex-col gap-4">
-          <label className="text-zinc-300 font-bold uppercase tracking-widest text-sm">
-            Paste Raw Transcript or Notes Here
-          </label>
+          <div className="flex justify-between items-end">
+            <label className="text-zinc-300 font-bold uppercase tracking-widest text-sm">
+              Paste Raw Transcript or Notes Here
+            </label>
+            <button
+              type="button"
+              onClick={isListening ? stopListening : startListening}
+              className={`px-4 py-2 rounded font-bold text-sm transition flex items-center gap-2 shadow-lg ${
+                isListening
+                  ? 'bg-[#E50000] text-white animate-pulse border border-red-400'
+                  : 'bg-[#D4AF37] text-black hover:bg-yellow-500'
+              }`}
+            >
+              {isListening ? '🛑 Stop Recording' : '🎤 Tap to Speak'}
+            </button>
+          </div>
+          {micError && (
+            <div className="bg-red-950 border border-red-500 text-red-400 p-2 rounded text-xs font-bold">
+              {micError}
+            </div>
+          )}
           <textarea
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
